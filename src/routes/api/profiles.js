@@ -52,4 +52,4 @@ router.delete('/:username/follow', auth.required, requestAsyncHandler(async (req
   return res.json({ profile: req.profile.toProfileJSONFor(user) });
 }));
 
-export default router;
+module.exports = router;

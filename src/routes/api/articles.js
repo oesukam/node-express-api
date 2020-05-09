@@ -12,7 +12,6 @@ const User = mongoose.model('User');
 
 // Preload article objects on routes with ':article'
 router.param('article', requestAsyncHandler(async (req, res, next, slug) => {
-
   const article = await Article.findOne({ slug })
     .populate('author');
 
@@ -33,246 +32,232 @@ router.param('comment', requestAsyncHandler(async (req, res, next, id) => {
   return next();
 }));
 
-router.get('/', auth.optional, requestAsyncHandler(async (req, res, next) => {
-  let query = {};
+router.get('/', auth.optional, (req, res, next) => {
+  const query = {};
   let limit = 20;
   let offset = 0;
 
-  if(typeof req.query.limit !== 'undefined'){
+  if (typeof req.query.limit !== 'undefined') {
     limit = req.query.limit;
   }
 
-  if(typeof req.query.offset !== 'undefined'){
+  if (typeof req.query.offset !== 'undefined') {
     offset = req.query.offset;
   }
 
-  if( typeof req.query.tag !== 'undefined' ){
-    query.tagList = {"$in" : [req.query.tag]};
+  if (typeof req.query.tag !== 'undefined') {
+    query.tagList = { $in: [req.query.tag] };
   }
 
   Promise.all([
-    req.query.author ? User.findOne({username: req.query.author}) : null,
-    req.query.favorited ? User.findOne({username: req.query.favorited}) : null
-  ]).then(function(results){
+    req.query.author ? User.findOne({ username: req.query.author }) : null,
+    req.query.favorited ? User.findOne({ username: req.query.favorited }) : null,
+  ]).then((results) => {
     const author = results[0];
     const favoriter = results[1];
 
-    if(author){
+    if (author) {
       query.author = author._id;
     }
 
-    if(favoriter){
-      query._id = {$in: favoriter.favorites};
-    } else if(req.query.favorited){
-      query._id = {$in: []};
+    if (favoriter) {
+      query._id = { $in: favoriter.favorites };
+    } else if (req.query.favorited) {
+      query._id = { $in: [] };
     }
 
     return Promise.all([
       Article.find(query)
         .limit(Number(limit))
         .skip(Number(offset))
-        .sort({createdAt: 'desc'})
+        .sort({ createdAt: 'desc' })
         .populate('author')
         .exec(),
       Article.count(query).exec(),
       req.payload ? User.findById(req.payload.id) : null,
-    ]).then(function(results){
-      var articles = results[0];
-      var articlesCount = results[1];
-      var user = results[2];
+    ]).then((articleResults) => {
+      const articles = articleResults[0];
+      const articlesCount = results[1];
+      const user = results[2];
 
       return res.json({
-        articles: articles.map(function(article){
-          return article.toJSONFor(user);
-        }),
-        articlesCount: articlesCount
+        articles: articles.map((article) => article.toJSONFor(user)),
+        articlesCount,
       });
     });
+  }).catch(next);
 });
 
-router.get('/feed', auth.required, function(req, res, next) {
+router.get('/feed', auth.required, (req, res, next) => {
   let limit = 20;
   let offset = 0;
 
-  if(typeof req.query.limit !== 'undefined'){
+  if (typeof req.query.limit !== 'undefined') {
     limit = req.query.limit;
   }
 
-  if(typeof req.query.offset !== 'undefined'){
+  if (typeof req.query.offset !== 'undefined') {
     offset = req.query.offset;
   }
 
-  User.findById(req.payload.id).then(function(user){
+  User.findById(req.payload.id).then((user) => {
     if (!user) { return res.sendStatus(401); }
 
-    Promise.all([
-      Article.find({ author: {$in: user.following}})
+    return Promise.all([
+      Article.find({ author: { $in: user.following } })
         .limit(Number(limit))
         .skip(Number(offset))
         .populate('author')
         .exec(),
-      Article.count({ author: {$in: user.following}})
-    ]).then(function(results){
-      var articles = results[0];
-      var articlesCount = results[1];
+      Article.count({ author: { $in: user.following } }),
+    ]).then((results) => {
+      const articles = results[0];
+      const articlesCount = results[1];
 
       return res.json({
-        articles: articles.map(function(article){
-          return article.toJSONFor(user);
-        }),
-        articlesCount: articlesCount
+        articles: articles.map((article) => article.toJSONFor(user)),
+        articlesCount,
       });
     }).catch(next);
   });
 });
 
-router.post('/', auth.required, function(req, res, next) {
-  User.findById(req.payload.id).then(function(user){
+router.post('/', auth.required, (req, res, next) => {
+  User.findById(req.payload.id).then((user) => {
     if (!user) { return res.sendStatus(401); }
 
-    var article = new Article(req.body.article);
+    const article = new Article(req.body.article);
 
     article.author = user;
 
-    return article.save().then(function(){
+    return article.save().then(() => {
       console.log(article.author);
-      return res.json({article: article.toJSONFor(user)});
+      return res.json({ article: article.toJSONFor(user) });
     });
   }).catch(next);
 });
 
 // return a article
-router.get('/:article', auth.optional, function(req, res, next) {
+router.get('/:article', auth.optional, (req, res, next) => {
   Promise.all([
     req.payload ? User.findById(req.payload.id) : null,
-    req.article.populate('author').execPopulate()
-  ]).then(function(results){
-    var user = results[0];
+    req.article.populate('author').execPopulate(),
+  ]).then((results) => {
+    const user = results[0];
 
-    return res.json({article: req.article.toJSONFor(user)});
+    return res.json({ article: req.article.toJSONFor(user) });
   }).catch(next);
 });
 
 // update article
-router.put('/:article', auth.required, function(req, res, next) {
-  User.findById(req.payload.id).then(function(user){
-    if(req.article.author._id.toString() === req.payload.id.toString()){
-      if(typeof req.body.article.title !== 'undefined'){
+router.put('/:article', auth.required, (req, res, next) => {
+  User.findById(req.payload.id).then((user) => {
+    if (req.article.author._id.toString() === req.payload.id.toString()) {
+      if (typeof req.body.article.title !== 'undefined') {
         req.article.title = req.body.article.title;
       }
 
-      if(typeof req.body.article.description !== 'undefined'){
+      if (typeof req.body.article.description !== 'undefined') {
         req.article.description = req.body.article.description;
       }
 
-      if(typeof req.body.article.body !== 'undefined'){
+      if (typeof req.body.article.body !== 'undefined') {
         req.article.body = req.body.article.body;
       }
 
-      if(typeof req.body.article.tagList !== 'undefined'){
-        req.article.tagList = req.body.article.tagList
+      if (typeof req.body.article.tagList !== 'undefined') {
+        req.article.tagList = req.body.article.tagList;
       }
 
-      req.article.save().then(function(article){
-        return res.json({article: article.toJSONFor(user)});
-      }).catch(next);
-    } else {
-      return res.sendStatus(403);
+      return req.article.save()
+        .then((article) => res.json({ article: article.toJSONFor(user) })).catch(next);
     }
+
+    return res.sendStatus(403);
   });
 });
 
 // delete article
-router.delete('/:article', auth.required, function(req, res, next) {
-  User.findById(req.payload.id).then(function(user){
+router.delete('/:article', auth.required, (req, res, next) => {
+  User.findById(req.payload.id).then((user) => {
     if (!user) { return res.sendStatus(401); }
 
-    if(req.article.author._id.toString() === req.payload.id.toString()){
-      return req.article.remove().then(function(){
-        return res.sendStatus(204);
-      });
-    } else {
-      return res.sendStatus(403);
+    if (req.article.author._id.toString() === req.payload.id.toString()) {
+      return req.article.remove().then(() => res.sendStatus(204));
     }
+    return res.sendStatus(403);
   }).catch(next);
 });
 
 // Favorite an article
-router.post('/:article/favorite', auth.required, function(req, res, next) {
-  var articleId = req.article._id;
+router.post('/:article/favorite', auth.required, (req, res, next) => {
+  const articleId = req.article._id;
 
-  User.findById(req.payload.id).then(function(user){
+  User.findById(req.payload.id).then((user) => {
     if (!user) { return res.sendStatus(401); }
 
-    return user.favorite(articleId).then(function(){
-      return req.article.updateFavoriteCount().then(function(article){
-        return res.json({article: article.toJSONFor(user)});
-      });
-    });
+    return user.favorite(articleId)
+      .then(() => req.article.updateFavoriteCount()
+        .then((article) => res.json({ article: article.toJSONFor(user) })));
   }).catch(next);
 });
 
 // Unfavorite an article
-router.delete('/:article/favorite', auth.required, function(req, res, next) {
-  var articleId = req.article._id;
+router.delete('/:article/favorite', auth.required, (req, res, next) => {
+  const articleId = req.article._id;
 
-  User.findById(req.payload.id).then(function (user){
+  User.findById(req.payload.id).then((user) => {
     if (!user) { return res.sendStatus(401); }
 
-    return user.unfavorite(articleId).then(function(){
-      return req.article.updateFavoriteCount().then(function(article){
-        return res.json({article: article.toJSONFor(user)});
-      });
-    });
+    return user.unfavorite(articleId)
+      .then(() => req.article.updateFavoriteCount()
+        .then((article) => res.json({ article: article.toJSONFor(user) })));
   }).catch(next);
 });
 
 // return an article's comments
-router.get('/:article/comments', auth.optional, function(req, res, next){
-  Promise.resolve(req.payload ? User.findById(req.payload.id) : null).then(function(user){
-    return req.article.populate({
-      path: 'comments',
-      populate: {
-        path: 'author'
+router.get('/:article/comments', auth.optional, (req, res, next) => Promise.resolve(
+  req.payload ? User.findById(req.payload.id) : null,
+)
+  .then((user) => req.article.populate({
+    path: 'comments',
+    populate: {
+      path: 'author',
+    },
+    options: {
+      sort: {
+        createdAt: 'desc',
       },
-      options: {
-        sort: {
-          createdAt: 'desc'
-        }
-      }
-    }).execPopulate().then(function(article) {
-      return res.json({comments: req.article.comments.map(function(comment){
-        return comment.toJSONFor(user);
-      })});
-    });
-  }).catch(next);
-});
+    },
+  }).execPopulate().then(() => res.json({
+    comments: req.article.comments.map((comment) => comment.toJSONFor(user)),
+  }))).catch(next));
 
 // create a new comment
-router.post('/:article/comments', auth.required, function(req, res, next) {
-  User.findById(req.payload.id).then(function(user){
-    if(!user){ return res.sendStatus(401); }
+router.post('/:article/comments', auth.required, (req, res, next) => {
+  User.findById(req.payload.id).then((user) => {
+    if (!user) { return res.sendStatus(401); }
 
-    var comment = new Comment(req.body.comment);
+    const comment = new Comment(req.body.comment);
     comment.article = req.article;
     comment.author = user;
 
-    return comment.save().then(function(){
+    return comment.save().then(() => {
       req.article.comments.push(comment);
 
-      return req.article.save().then(function(article) {
-        res.json({comment: comment.toJSONFor(user)});
+      return req.article.save().then(() => {
+        res.json({ comment: comment.toJSONFor(user) });
       });
     });
   }).catch(next);
 });
 
-router.delete('/:article/comments/:comment', auth.required, function(req, res, next) {
-  if(req.comment.author.toString() === req.payload.id.toString()){
+router.delete('/:article/comments/:comment', auth.required, (req, res) => {
+  if (req.comment.author.toString() === req.payload.id.toString()) {
     req.article.comments.remove(req.comment._id);
     req.article.save()
-      .then(Comment.find({_id: req.comment._id}).remove().exec())
-      .then(function(){
+      .then(Comment.find({ _id: req.comment._id }).remove().exec())
+      .then(() => {
         res.sendStatus(204);
       });
   } else {
@@ -280,4 +265,4 @@ router.delete('/:article/comments/:comment', auth.required, function(req, res, n
   }
 });
 
-export default router;
+module.exports = router;

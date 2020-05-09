@@ -1,44 +1,47 @@
-var mongoose = require('mongoose');
-var uniqueValidator = require('mongoose-unique-validator');
-var slug = require('slug');
-var User = mongoose.model('User');
+import mongoose from 'mongoose';
+import uniqueValidator from 'mongoose-unique-validator';
+import slug from 'slug';
 
-var ArticleSchema = new mongoose.Schema({
-  slug: {type: String, lowercase: true, unique: true},
+const User = mongoose.model('User');
+
+const ArticleSchema = new mongoose.Schema({
+  slug: { type: String, lowercase: true, unique: true },
   title: String,
   description: String,
   body: String,
-  favoritesCount: {type: Number, default: 0},
+  favoritesCount: { type: Number, default: 0 },
   comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
   tagList: [{ type: String }],
-  author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-}, {timestamps: true});
+  author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+}, { timestamps: true });
 
-ArticleSchema.plugin(uniqueValidator, {message: 'is already taken'});
+ArticleSchema.plugin(uniqueValidator, { message: 'is already taken' });
 
-ArticleSchema.pre('validate', function(next){
-  if(!this.slug)  {
+ArticleSchema.pre('validate', function (next) {
+  if (!this.slug) {
     this.slugify();
   }
 
   next();
 });
 
-ArticleSchema.methods.slugify = function() {
-  this.slug = slug(this.title) + '-' + (Math.random() * Math.pow(36, 6) | 0).toString(36);
+const randomNumbers = () => (Math.random() * 36 ** 6 || 0).toString(36);
+
+ArticleSchema.methods.slugify = function () {
+  this.slug = `${slug(this.title)}-${randomNumbers()}`;
 };
 
-ArticleSchema.methods.updateFavoriteCount = function() {
-  var article = this;
+ArticleSchema.methods.updateFavoriteCount = async function () {
+  const article = this;
 
-  return User.count({favorites: {$in: [article._id]}}).then(function(count){
-    article.favoritesCount = count;
+  const count = await User.count({ favorites: { $in: [article._id] } });
 
-    return article.save();
-  });
+  article.favoritesCount = count;
+
+  return article.save();
 };
 
-ArticleSchema.methods.toJSONFor = function(user){
+ArticleSchema.methods.toJSONFor = function (user) {
   return {
     slug: this.slug,
     title: this.title,
@@ -49,7 +52,7 @@ ArticleSchema.methods.toJSONFor = function(user){
     tagList: this.tagList,
     favorited: user ? user.isFavorite(this._id) : false,
     favoritesCount: this.favoritesCount,
-    author: this.author.toProfileJSONFor(user)
+    author: this.author.toProfileJSONFor(user),
   };
 };
 

@@ -1,12 +1,9 @@
-import methods from 'methods';
 import express from 'express';
-import bodyParser from 'body-parser';
 import session from 'express-session';
 import cors from 'cors';
 import morgan from 'morgan';
 import errorhandler from 'errorhandler';
 import mongoose from 'mongoose';
-import routes from './routes';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -17,10 +14,8 @@ app.use(cors());
 
 // Normal express config defaults
 app.use(morgan('dev'));
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-
-app.use(methods());
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 
 app.use(session({
   secret: 'conduit',
@@ -46,7 +41,7 @@ require('./models/Article');
 require('./models/Comment');
 require('./config/passport');
 
-app.use(routes);
+app.use(require('./routes'));
 
 // catch 404 and forward to error handler
 app.use((req, res, next) => {
