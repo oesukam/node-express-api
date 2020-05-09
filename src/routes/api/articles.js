@@ -1,9 +1,13 @@
-var router = require('express').Router();
-var mongoose = require('mongoose');
-var Article = mongoose.model('Article');
-var Comment = mongoose.model('Comment');
-var User = mongoose.model('User');
-var auth = require('../auth');
+import { Router } from 'express';
+import mongoose from 'mongoose';
+import auth from '../auth';
+
+const router = Router();
+
+const Article = mongoose.model('Article');
+const Comment = mongoose.model('Comment');
+const User = mongoose.model('User');
+
 
 // Preload article objects on routes with ':article'
 router.param('article', function(req, res, next, slug) {

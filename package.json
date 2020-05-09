@@ -1,19 +1,22 @@
 {
   "name": "conduit-node",
   "version": "1.0.0",
-  "description": "conduit on node",
+  "description": "Node Express API",
   "main": "app.js",
   "scripts": {
     "mongo:start": "docker run --name realworld-mongo -p 27017:27017 mongo & sleep 5",
-    "start": "node ./app.js",
-    "dev": "nodemon ./app.js",
+    "start": "node ./dist/server.js",
+    "dev": "babel-watch ./src/server.js",
+    "build": "babel src --out-dir dist --copy-files",
     "test": "newman run ./tests/api-tests.postman.json -e ./tests/env-api-tests.postman.json",
     "stop": "lsof -ti :3000 | xargs kill",
-    "mongo:stop": "docker stop realworld-mongo && docker rm realworld-mongo"
+    "mongo:stop": "docker stop realworld-mongo && docker rm realworld-mongo",
+    "lint": "node_modules/.bin/eslint 'src/**/*.*'",
+    "lint:fix": "prettier-eslint --write 'src/**/*.*'"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gothinkster/productionready-node-api.git"
+    "url": "git+https://github.com/oesukam/node-express-api.git"
   },
   "license": "ISC",
   "dependencies": {
@@ -36,10 +39,14 @@
     "underscore": "1.8.3"
   },
   "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.9.6",
+    "babel-preset-airbnb": "^5.0.0",
+    "babel-watch": "^7.0.0",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.1.0",
     "eslint-plugin-import": "^2.20.2",
     "newman": "^5.0.0",
-    "nodemon": "^2.0.3"
+    "prettier-eslint-cli": "^5.0.0"
   }
 }
