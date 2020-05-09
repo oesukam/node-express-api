@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import auth from '../auth';
+import requestAsyncHandler from '../../middlewares/requestAsyncHandler';
 
 const router = Router();
 
@@ -10,32 +11,32 @@ const User = mongoose.model('User');
 
 
 // Preload article objects on routes with ':article'
-router.param('article', function(req, res, next, slug) {
-  Article.findOne({ slug: slug})
-    .populate('author')
-    .then(function (article) {
-      if (!article) { return res.sendStatus(404); }
+router.param('article', requestAsyncHandler(async (req, res, next, slug) => {
 
-      req.article = article;
+  const article = await Article.findOne({ slug })
+    .populate('author');
 
-      return next();
-    }).catch(next);
-});
+  if (!article) { return res.sendStatus(404); }
 
-router.param('comment', function(req, res, next, id) {
-  Comment.findById(id).then(function(comment){
-    if(!comment) { return res.sendStatus(404); }
+  req.article = article;
 
-    req.comment = comment;
+  return next();
+}));
 
-    return next();
-  }).catch(next);
-});
+router.param('comment', requestAsyncHandler(async (req, res, next, id) => {
+  const comment = Comment.findById(id);
 
-router.get('/', auth.optional, function(req, res, next) {
-  var query = {};
-  var limit = 20;
-  var offset = 0;
+  if (!comment) { return res.sendStatus(404); }
+
+  req.comment = comment;
+
+  return next();
+}));
+
+router.get('/', auth.optional, requestAsyncHandler(async (req, res, next) => {
+  let query = {};
+  let limit = 20;
+  let offset = 0;
 
   if(typeof req.query.limit !== 'undefined'){
     limit = req.query.limit;
@@ -53,8 +54,8 @@ router.get('/', auth.optional, function(req, res, next) {
     req.query.author ? User.findOne({username: req.query.author}) : null,
     req.query.favorited ? User.findOne({username: req.query.favorited}) : null
   ]).then(function(results){
-    var author = results[0];
-    var favoriter = results[1];
+    const author = results[0];
+    const favoriter = results[1];
 
     if(author){
       query.author = author._id;
@@ -87,12 +88,11 @@ router.get('/', auth.optional, function(req, res, next) {
         articlesCount: articlesCount
       });
     });
-  }).catch(next);
 });
 
 router.get('/feed', auth.required, function(req, res, next) {
-  var limit = 20;
-  var offset = 0;
+  let limit = 20;
+  let offset = 0;
 
   if(typeof req.query.limit !== 'undefined'){
     limit = req.query.limit;
@@ -280,4 +280,4 @@ router.delete('/:article/comments/:comment', auth.required, function(req, res, n
   }
 });
 
-module.exports = router;
+export default router;

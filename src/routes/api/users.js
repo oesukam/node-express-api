@@ -1,8 +1,10 @@
-var mongoose = require('mongoose');
-var router = require('express').Router();
-var passport = require('passport');
-var User = mongoose.model('User');
-var auth = require('../auth');
+import { Router } from 'express';
+import mongoose from 'mongoose';
+import passport from 'passport';
+import auth from '../auth';
+
+const router = Router();
+const User = mongoose.model('User');
 
 router.get('/user', auth.required, function(req, res, next){
   User.findById(req.payload.id).then(function(user){
