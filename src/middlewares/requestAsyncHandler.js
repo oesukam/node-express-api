@@ -1,10 +1,6 @@
 
 const requestAsyncHandler = (cb) => async (req, res, next, other) => {
-  try {
-    await cb(req, res, next, other);
-  } catch (error) {
-    next(error);
-  }
+  await cb(req, res, next, other);
 };
 
 export default requestAsyncHandler;
