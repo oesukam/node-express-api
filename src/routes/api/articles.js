@@ -1,36 +1,34 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import auth from '../auth';
-import requestAsyncHandler from '../../middlewares/requestAsyncHandler';
 
 const router = Router();
-
 const Article = mongoose.model('Article');
 const Comment = mongoose.model('Comment');
 const User = mongoose.model('User');
-
+const auth = require('../auth');
 
 // Preload article objects on routes with ':article'
-router.param('article', requestAsyncHandler(async (req, res, next, slug) => {
-  const article = await Article.findOne({ slug })
-    .populate('author');
+router.param('article', (req, res, next, slug) => {
+  Article.findOne({ slug })
+    .populate('author')
+    .then((article) => {
+      if (!article) { return res.sendStatus(404); }
 
-  if (!article) { return res.sendStatus(404); }
+      req.article = article;
 
-  req.article = article;
+      return next();
+    }).catch(next);
+});
 
-  return next();
-}));
+router.param('comment', (req, res, next, id) => {
+  Comment.findById(id).then((comment) => {
+    if (!comment) { return res.sendStatus(404); }
 
-router.param('comment', requestAsyncHandler(async (req, res, next, id) => {
-  const comment = Comment.findById(id);
+    req.comment = comment;
 
-  if (!comment) { return res.sendStatus(404); }
-
-  req.comment = comment;
-
-  return next();
-}));
+    return next();
+  }).catch(next);
+});
 
 router.get('/', auth.optional, (req, res, next) => {
   const query = {};
@@ -75,10 +73,10 @@ router.get('/', auth.optional, (req, res, next) => {
         .exec(),
       Article.count(query).exec(),
       req.payload ? User.findById(req.payload.id) : null,
-    ]).then((articleResults) => {
-      const articles = articleResults[0];
-      const articlesCount = results[1];
-      const user = results[2];
+    ]).then((resultsArticles) => {
+      const articles = resultsArticles[0];
+      const articlesCount = resultsArticles[1];
+      const user = resultsArticles[2];
 
       return res.json({
         articles: articles.map((article) => article.toJSONFor(user)),
@@ -172,7 +170,6 @@ router.put('/:article', auth.required, (req, res, next) => {
       return req.article.save()
         .then((article) => res.json({ article: article.toJSONFor(user) })).catch(next);
     }
-
     return res.sendStatus(403);
   });
 });
@@ -216,22 +213,22 @@ router.delete('/:article/favorite', auth.required, (req, res, next) => {
 });
 
 // return an article's comments
-router.get('/:article/comments', auth.optional, (req, res, next) => Promise.resolve(
-  req.payload ? User.findById(req.payload.id) : null,
-)
-  .then((user) => req.article.populate({
-    path: 'comments',
-    populate: {
-      path: 'author',
-    },
-    options: {
-      sort: {
-        createdAt: 'desc',
+router.get('/:article/comments', auth.optional, (req, res, next) => {
+  Promise.resolve(req.payload ? User.findById(req.payload.id) : null)
+    .then((user) => req.article.populate({
+      path: 'comments',
+      populate: {
+        path: 'author',
       },
-    },
-  }).execPopulate().then(() => res.json({
-    comments: req.article.comments.map((comment) => comment.toJSONFor(user)),
-  }))).catch(next));
+      options: {
+        sort: {
+          createdAt: 'desc',
+        },
+      },
+    }).execPopulate().then(() => res.json({
+      comments: req.article.comments.map((comment) => comment.toJSONFor(user)),
+    }))).catch(next);
+});
 
 // create a new comment
 router.post('/:article/comments', auth.required, (req, res, next) => {
@@ -255,14 +252,13 @@ router.post('/:article/comments', auth.required, (req, res, next) => {
 router.delete('/:article/comments/:comment', auth.required, (req, res) => {
   if (req.comment.author.toString() === req.payload.id.toString()) {
     req.article.comments.remove(req.comment._id);
-    req.article.save()
+    return req.article.save()
       .then(Comment.find({ _id: req.comment._id }).remove().exec())
       .then(() => {
         res.sendStatus(204);
       });
-  } else {
-    res.sendStatus(403);
   }
+  return res.sendStatus(403);
 });
 
 module.exports = router;

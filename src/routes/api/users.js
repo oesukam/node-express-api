@@ -15,35 +15,30 @@ router.get('/user', auth.required, requestAsyncHandler(async (req, res) => {
   return res.json({ user: user.toAuthJSON() });
 }));
 
-router.put('/user', auth.required, requestAsyncHandler(async (req, res) => {
-  let user = User.findById(req.payload.id);
-  if (!user) { return res.sendStatus(401); }
+router.put('/user', auth.required, (req, res, next) => {
+  User.findById(req.payload.id).then((user) => {
+    if (!user) { return res.sendStatus(401); }
 
-  // only update fields that were actually passed...
-  if (typeof req.body.user.username !== 'undefined') {
-    user.username = req.body.user.username;
-  }
+    // only update fields that were actually passed...
+    if (typeof req.body.user.username !== 'undefined') {
+      user.username = req.body.user.username;
+    }
+    if (typeof req.body.user.email !== 'undefined') {
+      user.email = req.body.user.email;
+    }
+    if (typeof req.body.user.bio !== 'undefined') {
+      user.bio = req.body.user.bio;
+    }
+    if (typeof req.body.user.image !== 'undefined') {
+      user.image = req.body.user.image;
+    }
+    if (typeof req.body.user.password !== 'undefined') {
+      user.setPassword(req.body.user.password);
+    }
 
-  if (typeof req.body.user.email !== 'undefined') {
-    user.email = req.body.user.email;
-  }
-
-  if (typeof req.body.user.bio !== 'undefined') {
-    user.bio = req.body.user.bio;
-  }
-
-  if (typeof req.body.user.image !== 'undefined') {
-    user.image = req.body.user.image;
-  }
-
-  if (typeof req.body.user.password !== 'undefined') {
-    user.setPassword(req.body.user.password);
-  }
-
-  user = await user.save();
-
-  return res.json({ user: user.toAuthJSON() });
-}));
+    return user.save().then(() => res.json({ user: user.toAuthJSON() }));
+  }).catch(next);
+});
 
 router.post('/users/login', (req, res, next) => {
   const { user } = req.body;

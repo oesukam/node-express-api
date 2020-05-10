@@ -8,12 +8,12 @@ const router = Router();
 const User = mongoose.model('User');
 
 // Preload user profile on routes with ':username'
-router.param('username', requestAsyncHandler(async (req, res, next, username) => {
+router.param('username', async (req, res, next, username) => {
   const user = await User.findOne({ username });
   if (!user) return res.sendStatus(404);
   req.profile = user;
   return next();
-}));
+});
 
 router.get('/:username', auth.optional, requestAsyncHandler(async (req, res) => {
   if (req.payload) {
