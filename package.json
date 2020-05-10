@@ -1,32 +1,32 @@
 {
   "name": "conduit-node",
   "version": "1.0.0",
-  "description": "conduit on node",
+  "description": "Node Express API",
   "main": "app.js",
   "scripts": {
     "mongo:start": "docker run --name realworld-mongo -p 27017:27017 mongo & sleep 5",
-    "start": "node ./app.js",
-    "dev": "nodemon ./app.js",
+    "start": "node ./dist/server.js",
+    "dev": "babel-watch ./src/server.js",
+    "build": "babel src --out-dir dist --copy-files",
     "test": "newman run ./tests/api-tests.postman.json -e ./tests/env-api-tests.postman.json",
     "stop": "lsof -ti :3000 | xargs kill",
-    "mongo:stop": "docker stop realworld-mongo && docker rm realworld-mongo"
+    "mongo:stop": "docker stop realworld-mongo && docker rm realworld-mongo",
+    "lint": "node_modules/.bin/eslint './src/**/*.*'",
+    "lint:fix": "node_modules/.bin/eslint './src/**/*.*' --fix"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gothinkster/productionready-node-api.git"
+    "url": "git+https://github.com/oesukam/node-express-api.git"
   },
   "license": "ISC",
   "dependencies": {
-    "body-parser": "^1.19.0",
     "cors": "2.7.1",
-    "ejs": "2.4.1",
     "errorhandler": "1.4.3",
     "express": "^4.17.1",
     "express-jwt": "^5.3.3",
     "express-session": "^1.17.1",
     "jsonwebtoken": "7.1.9",
     "method-override": "^3.0.0",
-    "methods": "1.1.2",
     "mongoose": "^5.9.13",
     "mongoose-unique-validator": "^2.0.3",
     "morgan": "^1.10.0",
@@ -36,7 +36,14 @@
     "underscore": "1.8.3"
   },
   "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.9.6",
+    "babel-preset-airbnb": "^5.0.0",
+    "babel-watch": "^7.0.0",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.1.0",
+    "eslint-plugin-import": "^2.20.2",
     "newman": "^5.0.0",
-    "nodemon": "^2.0.3"
+    "prettier-eslint-cli": "^5.0.0"
   }
 }
